@@ -1,112 +1,120 @@
-'use strict';
+import express from 'express';
+import cluster from 'cluster';
+import client from 'prom-client';
+import DNAC from './DNAC.js';
+import CONFIG from './DNAC_USER_CONFIG.js';
 
-const express = require('express');
-const cluster = require('cluster');
 const server = express();
-const client = require('prom-client');
-const register = client.register;
-const DNAC = require('./DNAC');
-const CONFIG = require('./DNAC_USER_CONFIG');
+const { Histogram, Counter, Gauge, collectDefaultMetrics, register } = client;
 
 console.log(CONFIG.ip);
 console.log(CONFIG.user);
 console.log(CONFIG.passwd);
 
-let dnac = new DNAC({
-    host: 'https://' + CONFIG.ip,
-    username: CONFIG.user,
-    password: CONFIG.passwd
-
+const dnac = new DNAC({
+  host: `https://${CONFIG.ip}`,
+  username: CONFIG.user,
+  password: CONFIG.passwd
 });
 
-// Test Code to enable for troubleshooting DNAC interface helper
-//dnac.getSites(function(sites) {
-//console.log(JSON.stringify(sites));	
-//});
-
-const Histogram = client.Histogram;
-const h = new Histogram({
-	name: 'test_histogram',
-	help: 'Example of a histogram',
-	labelNames: ['code']
+// Initialize Prometheus metrics
+const histogram = new Histogram({
+  name: 'test_histogram',
+  help: 'Example of a histogram',
+  labelNames: ['code']
 });
 
-const Counter = client.Counter;
-const c = new Counter({
-	name: 'test_counter',
-	help: 'Example of a counter',
-	labelNames: ['code']
+const counter = new Counter({
+  name: 'test_counter',
+  help: 'Example of a counter',
+  labelNames: ['code']
 });
 
-const Gauge = client.Gauge;
-
-const nd = new client.Gauge({
-	name: 'dnac_network_device_count',
-	help: 'Network Device Count'
+const networkDeviceCount = new Gauge({
+  name: 'dnac_network_device_count',
+  help: 'Network Device Count'
 });
 
-setInterval(() => {
-	dnac.getNetworkDevicesCount(function(networkDevices) {
-//		console.log(JSON.stringify(networkDevices));
-		console.log("Collected network device count: " + networkDevices.response);
-		nd.set(networkDevices.response);
-	});
+const siteCount = new Gauge({
+  name: 'dnac_site_count',
+  help: 'Site Count'
+});
+
+const testGauge = new Gauge({
+  name: 'test_gauge',
+  help: 'Example of a gauge',
+  labelNames: ['method', 'code']
+});
+
+// Use async/await for DNAC calls instead of callbacks
+setInterval(async () => {
+  try {
+    const networkDevices = await dnac.getNetworkDevicesCount();
+    console.log(`Collected network device count: ${networkDevices.response}`);
+    networkDeviceCount.set(networkDevices.response);
+  } catch (error) {
+    console.error('Error fetching network devices:', error);
+  }
 }, 3000);
 
-const st = new client.Gauge({
-	name: 'dnac_site_count',
-	help: 'Site Count'
-});
-
-setInterval(() => {
-	dnac.getSitesCount(function(siteCountResp) {
-		console.log("Collected site count: " + siteCountResp.response);
-		st.set(siteCountResp.response);
-	});
+setInterval(async () => {
+  try {
+    const siteCountResp = await dnac.getSitesCount();
+    console.log(`Collected site count: ${siteCountResp.response}`);
+    siteCount.set(siteCountResp.response);
+  } catch (error) {
+    console.error('Error fetching site count:', error);
+  }
 }, 3000);
-
-
-const g = new Gauge({
-	name: 'test_gauge',
-	help: 'Example of a gauge',
-	labelNames: ['method', 'code']
-});
 
 setTimeout(() => {
-	h.labels('200').observe(Math.random());
-	h.labels('300').observe(Math.random());
+  histogram.labels('200').observe(Math.random());
+  histogram.labels('300').observe(Math.random());
 }, 10);
 
 setInterval(() => {
-	c.inc({ code: 200 });
+  counter.inc({ code: 200 });
 }, 5000);
 
 setInterval(() => {
-	c.inc({ code: 400 });
+  counter.inc({ code: 400 });
 }, 2000);
 
 setInterval(() => {
-	c.inc();
+  counter.inc();
 }, 2000);
 
 setInterval(() => {
-	g.set({ method: 'get', code: 200 }, Math.random());
-	g.set(Math.random());
-	g.labels('post', '300').inc();
+  testGauge.set({ method: 'get', code: 200 }, Math.random());
+  testGauge.set(Math.random());
+  testGauge.labels('post', '300').inc();
 }, 100);
 
-server.get('/metrics', (req, res) => {
-	res.set('Content-Type', register.contentType);
-	res.end(register.metrics());
+// Metrics routes
+server.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    const metrics = await register.metrics(); // Awaiting for metrics to resolve
+    res.end(metrics); // Send resolved metrics
+  } catch (error) {
+    console.error('Error retrieving metrics:', error);
+    res.status(500).send('Error retrieving metrics');
+  }
 });
 
-server.get('/metrics/counter', (req, res) => {
-	res.set('Content-Type', register.contentType);
-	res.end(register.getSingleMetricAsString('test_counter'));
+server.get('/metrics/counter', async (req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    const counterMetrics = await register.getSingleMetricAsString('test_counter'); // Awaiting for the single metric
+    res.end(counterMetrics); // Send resolved counter metrics
+  } catch (error) {
+    console.error('Error retrieving counter metrics:', error);
+    res.status(500).send('Error retrieving counter metrics');
+  }
 });
 
-//Enable collection of default metrics
-client.collectDefaultMetrics();
+// Enable collection of default metrics
+collectDefaultMetrics();
 
-console.log('Server listening to 9000, metrics exposed on /metrics endpoint');
+console.log('Server listening on port 9000, metrics exposed on /metrics endpoint');
 server.listen(9000);

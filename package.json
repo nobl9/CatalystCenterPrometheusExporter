@@ -1,16 +1,17 @@
 {
   "name": "appdev2019",
-  "version": "1.0.0",
-  "description": "App Dev 2019 Sample",
+  "version": "2.0.0",
+  "description": "App Dev 2019 Sample - Modern JavaScript Edition",
   "main": "server.js",
+  "type": "module",
   "scripts": {
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "cluster": "^0.7.7",
-    "express": "^4.17.1",
-    "prom-client": "^11.3.0",
-    "request": "^2.88.0"
+    "express": "^4.18.4",
+    "prom-client": "^14.0.0",
+    "axios": "^1.5.0"
   },
   "author": "Jerry David",
   "license": "ISC"
