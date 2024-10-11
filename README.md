@@ -3,20 +3,18 @@
 This repository is reference source code for a Prometheus Data Exporter for DNAC. 
 
 ## Pre-requisites
-1. Node version v8.11.2 or beyond recommended.  (Tested with node v 8.11.2)
-2. Docker 18.09.2 or beyond recommended. (Tested with docker 18.0.9.2).  docker-compose should be available.
-3. Bash shell for helper scripts
+1. Docker 25.0.2 or beyond recommended. docker-compose should be available.
+2. Bash shell for helper scripts
 
 ## Configuration & Run
-./init.sh <Local Machine IP Address> <DNAC IP Address> <DNAC admin user> <DNAC admin password>
+./init.sh <DNAC IP Address> <DNAC admin user> <DNAC admin password>
 All parameters are mandatory
 
 **Example**
-./init.sh 1.2.3.1 1.2.3.4 admin admin_password
+./init.sh 1.2.3.4 admin admin_password
 
 ## Usage
-Browse http://localhost:9000/metrics whether metrics are seen
-Browse http://localhost:9090 and check whether metrics with dnac_ are exported.
+Browse Prometheus at http://localhost:9090 and check whether metrics with dnac_ are exported.
 If the metrics are present, execute queries and examine results and graphs.  
 
 ## Troubleshoot
